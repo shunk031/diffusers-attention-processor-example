@@ -175,7 +175,7 @@ class MyPipeline(StableDiffusionPipeline):
 
 def main():
     pipeline = MyPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
-    pipeline = pipeline.to("mps")
+    pipeline = pipeline.to("cuda")
 
     output = pipeline(prompt="A photo of an astronaut riding on a horse.")
     (image,) = output.images

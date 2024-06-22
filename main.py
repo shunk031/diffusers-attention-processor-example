@@ -168,9 +168,9 @@ class NewAttnProcessor(AttnProcessor):
 
 class MyPipeline(StableDiffusionPipeline):
     @torch.no_grad()
-    def __call__(self, **kwargs):
+    def __call__(self, *args, **kwargs):
         self.unet.set_attn_processor(NewAttnProcessor())
-        return super().__call__(**kwargs)
+        return super().__call__(*args, **kwargs)
 
 
 def main():

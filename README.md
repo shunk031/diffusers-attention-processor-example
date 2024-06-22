@@ -26,3 +26,7 @@ poetry install
 ```shell
 poetry run python main.py
 ```
+
+## Acknowledgements
+
+- diffusers で Attention の処理をカスタマイズする方法 | AttnProcessor https://zenn.dev/prgckwb/articles/4510b3a06b8163 

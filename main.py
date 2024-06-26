@@ -109,6 +109,10 @@ class NewAttnProcessor(AttnProcessor):
 
         query = attn.to_q(hidden_states)
 
+        # As `encoder_hidden_states` may be re-assigned later,
+        # `is_cross_attn` is evaluated here.
+        is_cross_attn = encoder_hidden_states is not None
+
         if encoder_hidden_states is None:
             encoder_hidden_states = hidden_states
         elif attn.norm_cross:
@@ -125,7 +129,6 @@ class NewAttnProcessor(AttnProcessor):
 
         attention_probs = self.get_attention_scores(attn, query, key, attention_mask)
 
-        is_cross_attn = encoder_hidden_states is not None
         if is_cross_attn:
             self.cross_attentions.append(
                 ShapeStore(

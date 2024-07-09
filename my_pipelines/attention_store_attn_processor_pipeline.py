@@ -185,4 +185,4 @@ class AttentionStoreAttnProcessorPipeline(StableDiffusionPipeline):
         self._attention_store = AttentionStore(attn_res)
         self.register_attention_control()
 
-        return super().__call__(*args, **kwargs)  # type: ignore
+        return super().__call__(width=width, height=height, *args, **kwargs)  # type: ignore

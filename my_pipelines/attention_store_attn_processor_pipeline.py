@@ -1,12 +1,18 @@
+import logging
 from dataclasses import dataclass
-from typing import List, Literal, Optional, Tuple, TypedDict
+from typing import Dict, List, Literal, Optional, Tuple, TypedDict, Union
 
+import cv2
 import numpy as np
 import torch
 from diffusers import StableDiffusionPipeline
 from diffusers.models import UNet2DConditionModel
 from diffusers.models.attention_processor import Attention, AttnProcessor
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
+from PIL import Image
+from PIL.Image import Image as PilImage
+
+logger = logging.getLogger(__name__)
 
 BlockName = Literal["down", "mid", "up"]
 
@@ -166,6 +172,62 @@ class AttentionStoreAttnProcessorPipeline(StableDiffusionPipeline):
 
         self.unet.set_attn_processor(attn_procs)
         self.attention_store.num_att_layers = cross_att_count
+
+    def show_image_relevance(
+        self, image_relevance: torch.Tensor, image: PilImage, relevnace_res: int = 16
+    ) -> PilImage:
+        # create heatmap from mask on image
+        def show_cam_on_image(img, mask):
+            heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)
+            heatmap = np.float32(heatmap) / 255
+            cam = heatmap + np.float32(img)
+            cam = cam / np.max(cam)
+            return cam
+
+        image = image.resize((relevnace_res**2, relevnace_res**2))
+        image_np = np.array(image)
+
+        image_relevance = image_relevance.reshape(
+            1, 1, image_relevance.shape[-1], image_relevance.shape[-1]
+        )
+        image_relevance = (
+            image_relevance.cuda()
+        )  # because float16 precision interpolation is not supported on cpu
+        image_relevance = torch.nn.functional.interpolate(
+            image_relevance, size=relevnace_res**2, mode="bilinear"
+        )
+        image_relevance = image_relevance.cpu()  # send it back to cpu
+        image_relevance = (image_relevance - image_relevance.min()) / (
+            image_relevance.max() - image_relevance.min()
+        )
+        image_relevance = image_relevance.reshape(relevnace_res**2, relevnace_res**2)
+        image_np = (image_np - image_np.min()) / (image_np.max() - image_np.min())
+        vis = show_cam_on_image(image_np, image_relevance)
+        vis = np.uint8(255 * vis)
+        vis = cv2.cvtColor(np.array(vis), cv2.COLOR_RGB2BGR)
+
+        vis = vis.astype(np.uint8)
+        return Image.fromarray(vis)
+
+    def show_cross_attention(
+        self, generated_image: PilImage, prompt: str, res: int
+    ) -> List[Dict[str, Union[str, PilImage]]]:
+        attention_maps = self.attention_store.aggregate_attention(
+            from_where=("up", "down", "mid")
+        )
+
+        tokens = self.tokenizer.encode(prompt)
+        logger.info([self.tokenizer.decode(t) for t in tokens])
+
+        images = []
+        for i in range(len(tokens)):
+            image = attention_maps[:, :, i]
+            image = self.show_image_relevance(
+                image_relevance=image, image=generated_image, relevnace_res=res
+            )
+            image = image.resize((res**2, res**2))
+            images.append({"text": self.tokenizer.decode(tokens[i]), "image": image})
+        return images
 
     @torch.no_grad()
     def __call__(

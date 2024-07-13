@@ -21,10 +21,11 @@ pip install -U pip setuptools wheel poetry
 poetry install
 ```
 
-- Run the example script
+- Run the example wity pytest
 
 ```shell
-poetry run python main.py
+pytest --log-cli-level info -vs tests/shape_store_attn_processor_pipeline_test.py
+pytest --log-cli-level info -vs tests/attention_store_attn_processor_pipeline_test.py
 ```
 
 ## Acknowledgements
